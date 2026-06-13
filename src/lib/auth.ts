@@ -13,6 +13,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       checks: ["state"],
       clientId: process.env.WHOOP_CLIENT_ID,
       clientSecret: process.env.WHOOP_CLIENT_SECRET,
+      client: { token_endpoint_auth_method: "client_secret_post" },
       authorization: {
         url: "https://api.prod.whoop.com/oauth/oauth2/auth",
         params: {
