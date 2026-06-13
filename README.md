@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Daily OS
+
+Recovery-aware daily schedule system with Whoop integration.
+
+Automatically detects your recovery score, wake time, and selects the right schedule for your day. Includes a schedule editor so you can customize blocks to fit your workflow.
+
+## Features
+
+- **Whoop Integration** — Fetches recovery score, HRV, resting heart rate, and wake time
+- **Auto Day Selection** — Green (≥67%) → Standard, Yellow (34-66%) → Standard with warning, Red (<34%) → Low Energy
+- **Dynamic Time Shifting** — All blocks shift based on your actual wake time
+- **4 Day Types** — Standard, Interview, Heavy Work, Low Energy
+- **Schedule Editor** — Add, edit, delete, and reorder blocks
+- **PWA** — Installable on phone, tablet, desktop
+- **Responsive** — Mobile, tablet, and desktop layouts
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Whoop Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+On first load, you'll be prompted to connect your Whoop. For now this uses a personal access token:
 
-## Learn More
+1. Go to `app.whoop.com` and log in
+2. Open DevTools → Network tab → refresh
+3. Find any request to `api.prod.whoop.com`
+4. Copy the `Authorization` header value (after "Bearer ")
+5. Paste into the app
 
-To learn more about Next.js, take a look at the following resources:
+Token is stored in localStorage and only sent to Whoop's API.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Next.js 16 (App Router)
+- TypeScript
+- Tailwind CSS v4
+- localStorage for schedule persistence
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy to Vercel, Netlify, or any Node.js host.
