@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendPushToUser } from "@/lib/push";
 
-const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
+const WHOOP_BASE = "https://api.prod.whoop.com/developer/v2";
 
 export async function POST(request: NextRequest) {
   try {

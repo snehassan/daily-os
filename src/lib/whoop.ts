@@ -1,4 +1,4 @@
-const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
+const WHOOP_BASE = "https://api.prod.whoop.com/developer/v2";
 
 export interface RecoveryData {
   score: number;

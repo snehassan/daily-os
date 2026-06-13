@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
+const WHOOP_BASE = "https://api.prod.whoop.com/developer/v2";
 
 export async function GET(request: NextRequest) {
   let token = request.headers.get("x-whoop-token") || process.env.WHOOP_TOKEN;

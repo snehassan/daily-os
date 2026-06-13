@@ -42,7 +42,7 @@ export default function HomePage() {
       if (!recovery?.score) throw new Error("No recovery data");
 
       const sleepData = sleepRes.ok ? await sleepRes.json() : null;
-      const sleep = sleepData?.records?.[0];
+      const sleep = sleepData?.records?.find((r: { nap: boolean }) => !r.nap);
 
       let sleepResult = null;
       if (sleep?.end) {

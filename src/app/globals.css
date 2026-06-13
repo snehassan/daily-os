@@ -27,7 +27,18 @@
 
 html, body {
   height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  body {
+    overflow-y: auto;
+  }
 }
 
 body {
