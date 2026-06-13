@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     title: "Daily OS",
   },
   manifest: "/manifest.json",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

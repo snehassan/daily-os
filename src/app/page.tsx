@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { DEFAULT_SCHEDULES, type DaySchedule, type ScheduleBlock } from "@/lib/schedule-data";
-import { calculateShift, formatTime, DEFAULT_WAKE, shiftTime } from "@/lib/time";
+import { calculateShift, DEFAULT_WAKE, shiftTime, getDayCompression, getBlockEffectiveShift } from "@/lib/time";
 import { fetchWhoopData, getRecoveryZone, getAutoMode, type WhoopData } from "@/lib/whoop";
 import RecoveryRing from "@/components/RecoveryRing";
 import ModeBanner from "@/components/ModeBanner";
@@ -28,6 +28,7 @@ export default function HomePage() {
   const [showSettings, setShowSettings] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [customWake, setCustomWake] = useState<{ h: number; m: number } | null>(null);
+  const [blockAdjustments, setBlockAdjustments] = useState<Record<string, number>>({});
   const contentRef = useRef<HTMLDivElement>(null);
 
   const loadWhoopFromSession = useCallback(async () => {
@@ -120,6 +121,18 @@ export default function HomePage() {
         const wake = JSON.parse(savedWake);
         setCustomWake(wake);
         setShiftMinutes(calculateShift(wake.h, wake.m));
+      } catch {}
+    }
+
+    const savedAdj = localStorage.getItem("daily_os_block_adj");
+    if (savedAdj) {
+      try {
+        const { date, adj } = JSON.parse(savedAdj);
+        if (date === new Date().toDateString()) {
+          setBlockAdjustments(adj);
+        } else {
+          localStorage.removeItem("daily_os_block_adj");
+        }
       } catch {}
     }
 
@@ -228,6 +241,7 @@ export default function HomePage() {
     setCustomWake(wake);
     localStorage.setItem("daily_os_custom_wake", JSON.stringify(wake));
     setShiftMinutes(calculateShift(h, m));
+    handleClearAdjustments();
   }
 
   function handleClearCustomWake() {
@@ -238,6 +252,42 @@ export default function HomePage() {
     } else {
       setShiftMinutes(0);
     }
+  }
+
+  function handleBlockTimeAdjust(blockId: string, newH: number, newM: number) {
+    const schedule = schedules.find(s => s.id === activeTab);
+    if (!schedule) return;
+
+    const blockIndex = schedule.blocks.findIndex(b => b.id === blockId);
+    if (blockIndex < 0) return;
+
+    const block = schedule.blocks[blockIndex];
+    if (!block.time) return;
+
+    const compression = getDayCompression(shiftMinutes);
+    const baseShift = getBlockEffectiveShift(block.time, shiftMinutes, compression);
+    const currentAdj = blockAdjustments[block.id] || 0;
+    const effectiveShift = baseShift + currentAdj;
+    const current = shiftTime(block.time[0], block.time[1], effectiveShift);
+    const delta = (newH * 60 + newM) - (current.h * 60 + current.m);
+    if (delta === 0) return;
+
+    const newAdj = { ...blockAdjustments };
+    for (let i = blockIndex; i < schedule.blocks.length; i++) {
+      const b = schedule.blocks[i];
+      newAdj[b.id] = (newAdj[b.id] || 0) + delta;
+    }
+
+    setBlockAdjustments(newAdj);
+    localStorage.setItem("daily_os_block_adj", JSON.stringify({
+      date: new Date().toDateString(),
+      adj: newAdj,
+    }));
+  }
+
+  function handleClearAdjustments() {
+    setBlockAdjustments({});
+    localStorage.removeItem("daily_os_block_adj");
   }
 
   const activeSchedule = schedules.find((s) => s.id === activeTab) || schedules[0];
@@ -365,10 +415,26 @@ export default function HomePage() {
           </div>
         )}
 
+        {Object.keys(blockAdjustments).length > 0 && (
+          <div className="flex items-center justify-between mb-3 px-3 py-2 bg-[#1f1508] border border-[#3d2a0a] rounded-lg">
+            <span className="font-mono text-[10px] tracking-[0.08em] uppercase text-accent-lc">
+              schedule adjusted
+            </span>
+            <button
+              onClick={handleClearAdjustments}
+              className="text-[10px] text-dot font-mono bg-transparent border-none cursor-pointer active:text-muted"
+            >
+              reset
+            </button>
+          </div>
+        )}
+
         <ScheduleView
           schedule={activeSchedule}
           shiftMinutes={shiftMinutes}
+          blockAdjustments={blockAdjustments}
           onEditBlock={editMode ? setEditingBlock : undefined}
+          onAdjustBlockTime={handleBlockTimeAdjust}
         />
 
         {whoopData && (

@@ -30,3 +30,27 @@ export function getBlockMinutes(time: [number, number], shiftMin: number): numbe
   const shifted = shiftTime(time[0], time[1], shiftMin);
   return shifted.h * 60 + shifted.m;
 }
+
+const DEFAULT_DAY_LENGTH = 14 * 60;
+const MAX_BEDTIME = 25 * 60;
+
+export function getDayCompression(shiftMinutes: number): number {
+  if (shiftMinutes <= 0) return 1;
+  const defaultWakeMin = DEFAULT_WAKE.h * 60 + DEFAULT_WAKE.m;
+  const wakeMin = defaultWakeMin + shiftMinutes;
+  const maxSleep = Math.min(wakeMin + 16 * 60, MAX_BEDTIME);
+  const available = maxSleep - wakeMin;
+  if (available >= DEFAULT_DAY_LENGTH) return 1;
+  return available / DEFAULT_DAY_LENGTH;
+}
+
+export function getBlockEffectiveShift(
+  blockTime: [number, number],
+  shiftMinutes: number,
+  compression: number,
+): number {
+  if (compression >= 1) return shiftMinutes;
+  const defaultWakeMin = DEFAULT_WAKE.h * 60 + DEFAULT_WAKE.m;
+  const blockOffset = blockTime[0] * 60 + blockTime[1] - defaultWakeMin;
+  return Math.round(shiftMinutes + blockOffset * (compression - 1));
+}

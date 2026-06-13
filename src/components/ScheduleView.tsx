@@ -3,31 +3,43 @@
 import { useMemo } from "react";
 import type { DaySchedule } from "@/lib/schedule-data";
 import { NOTES } from "@/lib/schedule-data";
-import { getBlockMinutes } from "@/lib/time";
+import { getBlockMinutes, getDayCompression, getBlockEffectiveShift } from "@/lib/time";
 import ScheduleBlockComponent from "./ScheduleBlock";
 import type { ScheduleBlock } from "@/lib/schedule-data";
 
 interface Props {
   schedule: DaySchedule;
   shiftMinutes: number;
+  blockAdjustments: Record<string, number>;
   onEditBlock?: (block: ScheduleBlock) => void;
+  onAdjustBlockTime?: (blockId: string, h: number, m: number) => void;
 }
 
-export default function ScheduleView({ schedule, shiftMinutes, onEditBlock }: Props) {
+export default function ScheduleView({ schedule, shiftMinutes, blockAdjustments, onEditBlock, onAdjustBlockTime }: Props) {
   const nowMinutes = useMemo(() => {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
   }, []);
 
+  const compression = useMemo(() => getDayCompression(shiftMinutes), [shiftMinutes]);
+
+  function blockShift(block: ScheduleBlock): number {
+    const base = block.time
+      ? getBlockEffectiveShift(block.time, shiftMinutes, compression)
+      : shiftMinutes;
+    return base + (blockAdjustments[block.id] || 0);
+  }
+
   return (
     <div>
       {schedule.blocks.map((block, i) => {
+        const effectiveShift = blockShift(block);
         let isNow = false;
         if (block.time) {
-          const blockMin = getBlockMinutes(block.time, shiftMinutes);
+          const blockMin = getBlockMinutes(block.time, effectiveShift);
           const nextBlock = schedule.blocks[i + 1];
           if (nextBlock?.time) {
-            const nextMin = getBlockMinutes(nextBlock.time, shiftMinutes);
+            const nextMin = getBlockMinutes(nextBlock.time, blockShift(nextBlock));
             isNow = nowMinutes >= blockMin && nowMinutes < nextMin;
           } else if (i === schedule.blocks.length - 1) {
             isNow = nowMinutes >= blockMin;
@@ -38,9 +50,11 @@ export default function ScheduleView({ schedule, shiftMinutes, onEditBlock }: Pr
           <ScheduleBlockComponent
             key={block.id}
             block={block}
-            shiftMinutes={shiftMinutes}
+            shiftMinutes={effectiveShift}
             isNow={isNow}
+            isAdjusted={!!blockAdjustments[block.id]}
             onEdit={onEditBlock}
+            onAdjustTime={onAdjustBlockTime}
           />
         );
       })}
