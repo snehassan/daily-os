@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { DEFAULT_SCHEDULES, type DaySchedule, type ScheduleBlock } from "@/lib/schedule-data";
-import { calculateShift } from "@/lib/time";
+import { calculateShift, formatTime, DEFAULT_WAKE, shiftTime } from "@/lib/time";
 import { fetchWhoopData, getRecoveryZone, getAutoMode, type WhoopData } from "@/lib/whoop";
 import RecoveryRing from "@/components/RecoveryRing";
 import ModeBanner from "@/components/ModeBanner";
@@ -27,6 +27,7 @@ export default function HomePage() {
   const [editingBlock, setEditingBlock] = useState<ScheduleBlock | null | undefined>();
   const [showSettings, setShowSettings] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [customWake, setCustomWake] = useState<{ h: number; m: number } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const loadWhoopFromSession = useCallback(async () => {
@@ -63,7 +64,8 @@ export default function HomePage() {
       };
 
       setWhoopData(data);
-      if (data.sleep) {
+      const savedWake = localStorage.getItem("daily_os_custom_wake");
+      if (!savedWake && data.sleep) {
         setShiftMinutes(calculateShift(data.sleep.wakeTime.h, data.sleep.wakeTime.m));
       }
       const mode = getAutoMode(data.recovery.score);
@@ -81,7 +83,8 @@ export default function HomePage() {
       const data = await fetchWhoopData(token);
       setWhoopData(data);
 
-      if (data.sleep) {
+      const savedWake = localStorage.getItem("daily_os_custom_wake");
+      if (!savedWake && data.sleep) {
         const shift = calculateShift(data.sleep.wakeTime.h, data.sleep.wakeTime.m);
         setShiftMinutes(shift);
       }
@@ -108,6 +111,15 @@ export default function HomePage() {
     if (savedSchedules) {
       try {
         setSchedules(JSON.parse(savedSchedules));
+      } catch {}
+    }
+
+    const savedWake = localStorage.getItem("daily_os_custom_wake");
+    if (savedWake) {
+      try {
+        const wake = JSON.parse(savedWake);
+        setCustomWake(wake);
+        setShiftMinutes(calculateShift(wake.h, wake.m));
       } catch {}
     }
 
@@ -210,6 +222,24 @@ export default function HomePage() {
     setSchedules(DEFAULT_SCHEDULES);
   }
 
+  function handleWakeTimeChange(timeStr: string) {
+    const [h, m] = timeStr.split(":").map(Number);
+    const wake = { h, m };
+    setCustomWake(wake);
+    localStorage.setItem("daily_os_custom_wake", JSON.stringify(wake));
+    setShiftMinutes(calculateShift(h, m));
+  }
+
+  function handleClearCustomWake() {
+    setCustomWake(null);
+    localStorage.removeItem("daily_os_custom_wake");
+    if (whoopData?.sleep) {
+      setShiftMinutes(calculateShift(whoopData.sleep.wakeTime.h, whoopData.sleep.wakeTime.m));
+    } else {
+      setShiftMinutes(0);
+    }
+  }
+
   const activeSchedule = schedules.find((s) => s.id === activeTab) || schedules[0];
   const zone = whoopData ? getRecoveryZone(whoopData.recovery.score) : null;
 
@@ -228,7 +258,7 @@ export default function HomePage() {
 
   return (
     <>
-      <div ref={contentRef} className="flex-1 overflow-y-auto [-webkit-overflow-scrolling:touch] px-3.5 pt-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+20px)] sm:px-5 sm:pt-7 lg:max-w-[820px] lg:mx-auto lg:px-10 lg:pt-9 xl:max-w-[900px] xl:px-12">
+      <div ref={contentRef} className="px-3.5 pt-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+20px)] sm:px-5 sm:pt-7 lg:max-w-[820px] lg:mx-auto lg:px-10 lg:pt-9 xl:max-w-[900px] xl:px-12">
 
         <div className="mb-5">
           <div className="font-mono text-[10px] sm:text-[11px] tracking-[0.14em] text-muted uppercase mb-1.5">
@@ -284,6 +314,29 @@ export default function HomePage() {
               {item.label}
             </div>
           ))}
+        </div>
+
+        <div className="flex items-center gap-3 mb-5 p-3 bg-surface border border-border rounded-[10px]">
+          <label className="font-mono text-[10px] tracking-[0.1em] uppercase text-muted shrink-0">
+            Wake up
+          </label>
+          <input
+            type="time"
+            value={`${String(customWake?.h ?? shiftTime(DEFAULT_WAKE.h, DEFAULT_WAKE.m, shiftMinutes).h).padStart(2, "0")}:${String(customWake?.m ?? shiftTime(DEFAULT_WAKE.h, DEFAULT_WAKE.m, shiftMinutes).m).padStart(2, "0")}`}
+            onChange={(e) => handleWakeTimeChange(e.target.value)}
+            className="bg-bg border border-border rounded-lg px-2.5 py-1.5 text-text font-mono text-xs outline-none focus:border-accent-buffer transition-colors [color-scheme:dark]"
+          />
+          <span className="text-muted text-[11px]">
+            {customWake ? "custom" : whoopData?.sleep ? "from whoop" : "default"}
+          </span>
+          {customWake && (
+            <button
+              onClick={handleClearCustomWake}
+              className="text-[10px] text-dot font-mono bg-transparent border-none cursor-pointer active:text-muted ml-auto"
+            >
+              reset
+            </button>
+          )}
         </div>
 
         {editMode && (
