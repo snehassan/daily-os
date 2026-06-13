@@ -1,6 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Suspense } from "react";
 
 function LoginContent() {
@@ -23,12 +24,12 @@ function LoginContent() {
       )}
 
       <div className="bg-surface border border-border rounded-[14px] p-8 w-full max-w-[400px]">
-        <a
-          href="/api/auth/signin/whoop"
-          className="block w-full py-3.5 rounded-[10px] bg-accent-buffer text-bg font-semibold text-sm text-center no-underline active:opacity-80 transition-opacity"
+        <button
+          onClick={() => signIn("whoop", { callbackUrl: "/" })}
+          className="block w-full py-3.5 rounded-[10px] bg-accent-buffer text-bg font-semibold text-sm text-center cursor-pointer border-none active:opacity-80 transition-opacity"
         >
           Sign in with WHOOP
-        </a>
+        </button>
 
         <div className="flex items-center gap-3 my-5">
           <div className="flex-1 h-px bg-border" />
