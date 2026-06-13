@@ -10,25 +10,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       id: "whoop",
       name: "WHOOP",
       type: "oauth",
+      checks: ["state"],
       clientId: process.env.WHOOP_CLIENT_ID,
       clientSecret: process.env.WHOOP_CLIENT_SECRET,
       authorization: {
         url: "https://api.prod.whoop.com/oauth/oauth2/auth",
         params: {
           scope: "read:recovery read:sleep read:profile",
-          response_type: "code",
-          redirect_uri: `${process.env.AUTH_URL}/api/auth/callback/whoop`,
         },
       },
-      token: {
-        url: "https://api.prod.whoop.com/oauth/oauth2/token",
-        conform: async (response: Response) => {
-          if (response.ok) return response;
-          const body = await response.text();
-          console.error("[auth] Token exchange failed:", response.status, body);
-          return response;
-        },
-      },
+      token: "https://api.prod.whoop.com/oauth/oauth2/token",
       userinfo: "https://api.prod.whoop.com/developer/v1/user/profile/basic",
       profile(profile) {
         return {
