@@ -1,6 +1,20 @@
-import NextAuth from "next-auth";
+import NextAuth, { customFetch } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "./db";
+
+const WHOOP_TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token";
+
+const whoopFetch: typeof fetch = async (url, init) => {
+  if (url instanceof URL && url.toString() === WHOOP_TOKEN_URL || typeof url === "string" && url === WHOOP_TOKEN_URL) {
+    const body = init?.body as URLSearchParams;
+    body.set("client_id", process.env.WHOOP_CLIENT_ID!);
+    body.set("client_secret", process.env.WHOOP_CLIENT_SECRET!);
+    const headers = new Headers(init?.headers);
+    headers.delete("authorization");
+    return fetch(url, { ...init, headers });
+  }
+  return fetch(url, init);
+};
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   debug: true,
@@ -13,9 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       checks: ["state"],
       clientId: process.env.WHOOP_CLIENT_ID,
       clientSecret: process.env.WHOOP_CLIENT_SECRET,
-      client: {
-        token_endpoint_auth_method: "client_secret_post",
-      },
+      [customFetch]: whoopFetch,
       authorization: {
         url: "https://api.prod.whoop.com/oauth/oauth2/auth",
         params: {
