@@ -1,19 +1,32 @@
 import { NextRequest } from "next/server";
+import { prisma } from "@/lib/db";
+import { sendPushToUser } from "@/lib/push";
 
 const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { type, user_id, id } = body;
+    const { type, user_id } = body;
 
     if (type !== "recovery.updated") {
       return Response.json({ ok: true, skipped: type });
     }
 
-    const token = process.env.WHOOP_TOKEN;
+    const user = await prisma.user.findFirst({
+      where: { whoopId: String(user_id) },
+      include: { accounts: true },
+    });
+
+    if (!user) {
+      return Response.json({ ok: true, message: "User not found" });
+    }
+
+    const whoopAccount = user.accounts.find((a) => a.provider === "whoop");
+    const token = whoopAccount?.access_token;
+
     if (!token) {
-      return Response.json({ error: "No token configured" }, { status: 500 });
+      return Response.json({ ok: true, message: "No token for user" });
     }
 
     const recoveryRes = await fetch(`${WHOOP_BASE}/recovery?limit=1`, {
@@ -35,20 +48,13 @@ export async function POST(request: NextRequest) {
     const zone = score >= 67 ? "green" : score >= 34 ? "yellow" : "red";
     const schedule = score < 34 ? "Low Energy" : "Standard";
 
-    // TODO: integrate with web push subscriptions stored in DB
-    // For now, log and return the notification payload
-    console.log(`[Daily OS] Recovery processed: ${score}% (${zone}) → ${schedule} day`);
-
-    return Response.json({
-      ok: true,
-      notification: {
-        title: "Daily OS — Recovery Ready",
-        body: `Recovery: ${score}% (${zone}). Your ${schedule} day is loaded.`,
-        score,
-        zone,
-        schedule,
-      },
+    const result = await sendPushToUser(user.id, {
+      title: "Daily OS — Recovery Ready",
+      body: `Recovery: ${score}% (${zone}). Your ${schedule} day is loaded.`,
+      url: "/",
     });
+
+    return Response.json({ ok: true, score, zone, push: result });
   } catch (err) {
     console.error("[Daily OS] Webhook error:", err);
     return Response.json({ error: "Internal error" }, { status: 500 });

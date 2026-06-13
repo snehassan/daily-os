@@ -11,6 +11,7 @@ import TabBar from "@/components/TabBar";
 import SetupScreen from "@/components/SetupScreen";
 import BlockEditor from "@/components/BlockEditor";
 import SettingsModal from "@/components/SettingsModal";
+import PushSetup from "@/components/PushSetup";
 
 type AppState = "setup" | "loading" | "ready";
 
@@ -197,6 +198,11 @@ export default function HomePage() {
         {whoopData && zone && (
           <ModeBanner score={whoopData.recovery.score} zone={zone} />
         )}
+
+        <PushSetup
+          vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""}
+          isAuthenticated={!!whoopData}
+        />
 
         {!whoopData && (
           <div className="bg-[#1a1020] border border-[#3d1a4a] rounded-[10px] p-[14px_16px] text-[13px] text-[#c084fc] leading-[1.6] mb-5">
