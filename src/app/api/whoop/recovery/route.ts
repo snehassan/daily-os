@@ -1,9 +1,21 @@
 import { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 const WHOOP_BASE = "https://api.prod.whoop.com/developer/v1";
 
 export async function GET(request: NextRequest) {
-  const token = request.headers.get("x-whoop-token") || process.env.WHOOP_TOKEN;
+  let token = request.headers.get("x-whoop-token") || process.env.WHOOP_TOKEN;
+
+  if (!token) {
+    const session = await auth();
+    if (session?.user?.id) {
+      const account = await prisma.account.findFirst({
+        where: { userId: session.user.id, provider: "whoop" },
+      });
+      token = account?.access_token ?? undefined;
+    }
+  }
 
   if (!token) {
     return Response.json({ error: "No token" }, { status: 401 });

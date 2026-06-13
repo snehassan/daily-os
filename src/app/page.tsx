@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { DEFAULT_SCHEDULES, type DaySchedule, type ScheduleBlock } from "@/lib/schedule-data";
 import { calculateShift } from "@/lib/time";
 import { fetchWhoopData, getRecoveryZone, getAutoMode, type WhoopData } from "@/lib/whoop";
@@ -16,6 +17,7 @@ import PushSetup from "@/components/PushSetup";
 type AppState = "setup" | "loading" | "ready";
 
 export default function HomePage() {
+  const { data: session, status: sessionStatus } = useSession();
   const [appState, setAppState] = useState<AppState>("loading");
   const [schedules, setSchedules] = useState<DaySchedule[]>(DEFAULT_SCHEDULES);
   const [activeTab, setActiveTab] = useState("standard");
@@ -26,6 +28,53 @@ export default function HomePage() {
   const [showSettings, setShowSettings] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  const loadWhoopFromSession = useCallback(async () => {
+    try {
+      const [recoveryRes, sleepRes] = await Promise.all([
+        fetch("/api/whoop/recovery"),
+        fetch("/api/whoop/sleep"),
+      ]);
+
+      if (!recoveryRes.ok) throw new Error("Failed to fetch recovery");
+      const recoveryData = await recoveryRes.json();
+      const recovery = recoveryData.records?.[0];
+      if (!recovery?.score) throw new Error("No recovery data");
+
+      const sleepData = sleepRes.ok ? await sleepRes.json() : null;
+      const sleep = sleepData?.records?.[0];
+
+      let sleepResult = null;
+      if (sleep?.end) {
+        const wakeDate = new Date(sleep.end);
+        sleepResult = {
+          wakeTime: { h: wakeDate.getHours(), m: wakeDate.getMinutes() },
+          endISO: sleep.end,
+        };
+      }
+
+      const data: WhoopData = {
+        recovery: {
+          score: recovery.score.recovery_score,
+          hrv: recovery.score.hrv_rmssd_milli,
+          rhr: recovery.score.resting_heart_rate,
+        },
+        sleep: sleepResult,
+      };
+
+      setWhoopData(data);
+      if (data.sleep) {
+        setShiftMinutes(calculateShift(data.sleep.wakeTime.h, data.sleep.wakeTime.m));
+      }
+      const mode = getAutoMode(data.recovery.score);
+      setAutoModeId(mode);
+      setActiveTab(mode);
+      return true;
+    } catch (err) {
+      console.error("Whoop fetch failed:", err);
+      return false;
+    }
+  }, []);
 
   const loadWhoop = useCallback(async (token: string) => {
     try {
@@ -53,15 +102,23 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("whoop_token");
-    const skipped = localStorage.getItem("whoop_skipped");
-    const savedSchedules = localStorage.getItem("daily_os_schedules");
+    if (sessionStatus === "loading") return;
 
+    const savedSchedules = localStorage.getItem("daily_os_schedules");
     if (savedSchedules) {
       try {
         setSchedules(JSON.parse(savedSchedules));
       } catch {}
     }
+
+    if (session?.user) {
+      setAppState("loading");
+      loadWhoopFromSession().then(() => setAppState("ready"));
+      return;
+    }
+
+    const token = localStorage.getItem("whoop_token");
+    const skipped = localStorage.getItem("whoop_skipped");
 
     if (!token && !skipped) {
       setAppState("setup");
@@ -73,7 +130,7 @@ export default function HomePage() {
     } else {
       setAppState("ready");
     }
-  }, [loadWhoop]);
+  }, [loadWhoop, loadWhoopFromSession, session, sessionStatus]);
 
   useEffect(() => {
     const interval = setInterval(() => {
