@@ -11,6 +11,8 @@ model User {
   whoopId       String?   @unique
   email         String?   @unique
   name          String?
+  emailVerified DateTime?
+  image         String?
   accessToken   String?
   refreshToken  String?
   tokenExpiry   DateTime?
@@ -35,6 +37,8 @@ model Account {
   expires_at        Int?
   token_type        String?
   scope             String?
+  id_token          String?
+  session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
