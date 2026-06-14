@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSession, signIn } from "next-auth/react";
 import { DEFAULT_SCHEDULES, type DaySchedule, type ScheduleBlock } from "@/lib/schedule-data";
-import { calculateShift, DEFAULT_WAKE, shiftTime, getDayCompression, getBlockEffectiveShift } from "@/lib/time";
+import { calculateShift, DEFAULT_WAKE, shiftTime, getDayCompression, getBlockEffectiveShift, getBlockMinutes } from "@/lib/time";
 import { fetchWhoopData, getRecoveryZone, getAutoMode, type WhoopData } from "@/lib/whoop";
 import RecoveryRing from "@/components/RecoveryRing";
 import ModeBanner from "@/components/ModeBanner";
@@ -13,8 +13,9 @@ import SetupScreen from "@/components/SetupScreen";
 import BlockEditor from "@/components/BlockEditor";
 import SettingsModal from "@/components/SettingsModal";
 import PushSetup from "@/components/PushSetup";
+import OnboardingWizard from "@/components/OnboardingWizard";
 
-type AppState = "setup" | "loading" | "ready";
+type AppState = "setup" | "loading" | "onboarding" | "ready";
 
 export default function HomePage() {
   const { data: session, status: sessionStatus } = useSession();
@@ -29,6 +30,7 @@ export default function HomePage() {
   const [editMode, setEditMode] = useState(false);
   const [customWake, setCustomWake] = useState<{ h: number; m: number } | null>(null);
   const [blockAdjustments, setBlockAdjustments] = useState<Record<string, number>>({});
+  const [tokenExpired, setTokenExpired] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const loadWhoopFromSession = useCallback(async () => {
@@ -37,6 +39,14 @@ export default function HomePage() {
         fetch("/api/whoop/recovery"),
         fetch("/api/whoop/sleep"),
       ]);
+
+      if (recoveryRes.status === 401) {
+        const body = await recoveryRes.json().catch(() => ({}));
+        if (body.error === "token_expired") {
+          setTokenExpired(true);
+          return false;
+        }
+      }
 
       if (!recoveryRes.ok) throw new Error("Failed to fetch recovery");
       const recoveryData = await recoveryRes.json();
@@ -136,9 +146,11 @@ export default function HomePage() {
       } catch {}
     }
 
+    const needsOnboarding = !localStorage.getItem("daily_os_onboarded") && !localStorage.getItem("daily_os_schedules");
+
     if (session?.user) {
       setAppState("loading");
-      loadWhoopFromSession().then(() => setAppState("ready"));
+      loadWhoopFromSession().then(() => setAppState(needsOnboarding ? "onboarding" : "ready"));
       return;
     }
 
@@ -151,9 +163,9 @@ export default function HomePage() {
     }
 
     if (token) {
-      loadWhoop(token).then(() => setAppState("ready"));
+      loadWhoop(token).then(() => setAppState(needsOnboarding ? "onboarding" : "ready"));
     } else {
-      setAppState("ready");
+      setAppState(needsOnboarding ? "onboarding" : "ready");
     }
   }, [loadWhoop, loadWhoopFromSession, session, sessionStatus]);
 
@@ -163,6 +175,48 @@ export default function HomePage() {
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  const compression = useMemo(() => getDayCompression(shiftMinutes), [shiftMinutes]);
+  const activeSchedule = schedules.find((s) => s.id === activeTab) || schedules[0];
+
+  useEffect(() => {
+    if (appState !== "ready") return;
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+    if (Notification.permission !== "granted") return;
+
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const timers: ReturnType<typeof setTimeout>[] = [];
+
+    for (const block of activeSchedule.blocks) {
+      if (!block.time) continue;
+      const baseShift = getBlockEffectiveShift(block.time, shiftMinutes, compression);
+      const effectiveShift = baseShift + (blockAdjustments[block.id] || 0);
+      const blockMin = getBlockMinutes(block.time, effectiveShift);
+      const notifyMin = blockMin - 10;
+
+      if (notifyMin > nowMin) {
+        const delayMs = (notifyMin - nowMin) * 60 * 1000;
+        timers.push(setTimeout(() => {
+          new Notification("Daily OS", {
+            body: `${block.title} starts in 10 minutes`,
+            icon: "/icon-192.png",
+          });
+        }, delayMs));
+      }
+    }
+
+    return () => timers.forEach(t => clearTimeout(t));
+  }, [appState, activeSchedule, shiftMinutes, blockAdjustments, compression]);
+
+  function handleOnboardingComplete(newSchedules: DaySchedule[]) {
+    saveSchedules(newSchedules);
+    localStorage.setItem("daily_os_onboarded", "true");
+    setAppState("ready");
+  }
 
   function handleConnect(token: string) {
     localStorage.setItem("whoop_token", token);
@@ -290,11 +344,14 @@ export default function HomePage() {
     localStorage.removeItem("daily_os_block_adj");
   }
 
-  const activeSchedule = schedules.find((s) => s.id === activeTab) || schedules[0];
   const zone = whoopData ? getRecoveryZone(whoopData.recovery.score) : null;
 
   if (appState === "setup") {
     return <SetupScreen onConnect={handleConnect} onSkip={handleSkip} />;
+  }
+
+  if (appState === "onboarding") {
+    return <OnboardingWizard onComplete={handleOnboardingComplete} />;
   }
 
   if (appState === "loading") {
@@ -341,7 +398,24 @@ export default function HomePage() {
           isAuthenticated={!!whoopData}
         />
 
-        {!whoopData && (
+        {tokenExpired && (
+          <div className="bg-[#1f1508] border border-[#3d2a0a] rounded-[10px] p-[14px_16px] text-[13px] leading-[1.6] mb-5 flex items-center justify-between gap-3">
+            <div>
+              <strong className="block font-mono text-[10px] tracking-[0.1em] uppercase mb-1 text-accent-lc">
+                whoop session expired
+              </strong>
+              <span className="text-muted">Sign in again to refresh your recovery data.</span>
+            </div>
+            <button
+              onClick={() => signIn("whoop")}
+              className="px-4 py-2 bg-accent-lc text-bg text-xs font-semibold rounded-lg cursor-pointer shrink-0 active:opacity-80"
+            >
+              Re-sign in
+            </button>
+          </div>
+        )}
+
+        {!whoopData && !tokenExpired && (
           <div className="bg-[#1a1020] border border-[#3d1a4a] rounded-[10px] p-[14px_16px] text-[13px] text-[#c084fc] leading-[1.6] mb-5">
             <strong className="block font-mono text-[10px] tracking-[0.1em] uppercase mb-1 text-[#a855f7]">
               health note
@@ -489,6 +563,12 @@ export default function HomePage() {
         currentToken={typeof window !== "undefined" ? localStorage.getItem("whoop_token") || "" : ""}
         onSave={handleSettingsSave}
         onClear={handleSettingsClear}
+        onRebuild={() => {
+          localStorage.removeItem("daily_os_onboarded");
+          localStorage.removeItem("daily_os_schedules");
+          setShowSettings(false);
+          setAppState("onboarding");
+        }}
         onClose={() => setShowSettings(false)}
       />
     </>

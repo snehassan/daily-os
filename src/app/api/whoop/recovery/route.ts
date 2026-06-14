@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
       const account = await prisma.account.findFirst({
         where: { userId: session.user.id, provider: "whoop" },
       });
+      if (account?.expires_at && account.expires_at < Math.floor(Date.now() / 1000)) {
+        return Response.json({ error: "token_expired" }, { status: 401 });
+      }
       token = account?.access_token ?? undefined;
     }
   }
@@ -25,6 +28,10 @@ export async function GET(request: NextRequest) {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   });
+
+  if (res.status === 401) {
+    return Response.json({ error: "token_expired" }, { status: 401 });
+  }
 
   if (!res.ok) {
     return Response.json(

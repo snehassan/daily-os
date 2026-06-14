@@ -7,10 +7,11 @@ interface Props {
   currentToken: string;
   onSave: (token: string) => void;
   onClear: () => void;
+  onRebuild?: () => void;
   onClose: () => void;
 }
 
-export default function SettingsModal({ open, currentToken, onSave, onClear, onClose }: Props) {
+export default function SettingsModal({ open, currentToken, onSave, onClear, onRebuild, onClose }: Props) {
   const [token, setToken] = useState(currentToken);
 
   if (!open) return null;
@@ -47,6 +48,15 @@ export default function SettingsModal({ open, currentToken, onSave, onClear, onC
             Save & Reload
           </button>
         </div>
+
+        {onRebuild && (
+          <button
+            onClick={onRebuild}
+            className="mt-2.5 w-full py-2 rounded-lg bg-transparent border border-accent-buffer/30 text-accent-buffer text-xs cursor-pointer"
+          >
+            Rebuild Schedule
+          </button>
+        )}
 
         <button
           onClick={onClear}
