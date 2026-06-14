@@ -33,6 +33,32 @@ export default function HomePage() {
   const [tokenExpired, setTokenExpired] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  function applyWhoopData(data: WhoopData) {
+    setWhoopData(data);
+    setTokenExpired(false);
+    localStorage.setItem("daily_os_whoop_cache", JSON.stringify({ date: new Date().toDateString(), data }));
+    const savedWake = localStorage.getItem("daily_os_custom_wake");
+    if (!savedWake && data.sleep) {
+      setShiftMinutes(calculateShift(data.sleep.wakeTime.h, data.sleep.wakeTime.m));
+    }
+    const mode = getAutoMode(data.recovery.score);
+    setAutoModeId(mode);
+    setActiveTab(mode);
+  }
+
+  function loadCachedWhoop(): boolean {
+    try {
+      const cached = localStorage.getItem("daily_os_whoop_cache");
+      if (!cached) return false;
+      const { date, data } = JSON.parse(cached);
+      if (date === new Date().toDateString()) {
+        applyWhoopData(data);
+        return true;
+      }
+    } catch {}
+    return false;
+  }
+
   const loadWhoopFromSession = useCallback(async () => {
     try {
       const [recoveryRes, sleepRes] = await Promise.all([
@@ -44,6 +70,7 @@ export default function HomePage() {
         const body = await recoveryRes.json().catch(() => ({}));
         if (body.error === "token_expired") {
           setTokenExpired(true);
+          loadCachedWhoop();
           return false;
         }
       }
@@ -74,17 +101,11 @@ export default function HomePage() {
         sleep: sleepResult,
       };
 
-      setWhoopData(data);
-      const savedWake = localStorage.getItem("daily_os_custom_wake");
-      if (!savedWake && data.sleep) {
-        setShiftMinutes(calculateShift(data.sleep.wakeTime.h, data.sleep.wakeTime.m));
-      }
-      const mode = getAutoMode(data.recovery.score);
-      setAutoModeId(mode);
-      setActiveTab(mode);
+      applyWhoopData(data);
       return true;
     } catch (err) {
       console.error("Whoop fetch failed:", err);
+      loadCachedWhoop();
       return false;
     }
   }, []);
@@ -227,7 +248,8 @@ export default function HomePage() {
 
   function handleSkip() {
     localStorage.setItem("whoop_skipped", "true");
-    setAppState("ready");
+    const needsOnboarding = !localStorage.getItem("daily_os_onboarded") && !localStorage.getItem("daily_os_schedules");
+    setAppState(needsOnboarding ? "onboarding" : "ready");
   }
 
   function handleTabSelect(id: string) {
@@ -264,23 +286,15 @@ export default function HomePage() {
     setEditingBlock(undefined);
   }
 
-  function handleSettingsSave(token: string) {
-    if (token) {
-      localStorage.setItem("whoop_token", token);
-      localStorage.removeItem("whoop_skipped");
-      setShowSettings(false);
-      setAppState("loading");
-      loadWhoop(token).then(() => setAppState("ready"));
-    }
-  }
-
-  function handleSettingsClear() {
+  function handleDisconnect() {
     localStorage.removeItem("whoop_token");
     localStorage.removeItem("whoop_skipped");
+    localStorage.removeItem("daily_os_whoop_cache");
     setShowSettings(false);
     setWhoopData(null);
     setAutoModeId(undefined);
     setShiftMinutes(0);
+    setTokenExpired(false);
     setAppState("setup");
   }
 
@@ -560,9 +574,8 @@ export default function HomePage() {
 
       <SettingsModal
         open={showSettings}
-        currentToken={typeof window !== "undefined" ? localStorage.getItem("whoop_token") || "" : ""}
-        onSave={handleSettingsSave}
-        onClear={handleSettingsClear}
+        isConnected={!!whoopData || !!session?.user}
+        onDisconnect={handleDisconnect}
         onRebuild={() => {
           localStorage.removeItem("daily_os_onboarded");
           localStorage.removeItem("daily_os_schedules");

@@ -1,69 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { signIn } from "next-auth/react";
 
 interface Props {
   open: boolean;
-  currentToken: string;
-  onSave: (token: string) => void;
-  onClear: () => void;
+  isConnected: boolean;
   onRebuild?: () => void;
+  onDisconnect: () => void;
   onClose: () => void;
 }
 
-export default function SettingsModal({ open, currentToken, onSave, onClear, onRebuild, onClose }: Props) {
-  const [token, setToken] = useState(currentToken);
-
+export default function SettingsModal({ open, isConnected, onRebuild, onDisconnect, onClose }: Props) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-5" onClick={onClose}>
       <div className="bg-surface border border-border rounded-[14px] p-6 w-full max-w-[420px]" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-mono text-[11px] tracking-[0.1em] uppercase text-accent-buffer mb-4">
-          whoop token
+          settings
         </h3>
 
-        <label className="text-xs text-muted block mb-1.5">Personal access token</label>
-        <input
-          type="text"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="Paste token..."
-          className="w-full bg-bg border border-border rounded-lg px-3.5 py-3 text-text font-mono text-xs mb-4 outline-none focus:border-accent-buffer placeholder:text-dot"
-          autoComplete="off"
-          spellCheck={false}
-        />
-
-        <div className="flex gap-2.5">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg bg-transparent border border-border text-muted text-[13px] cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(token.trim())}
-            className="flex-1 py-2.5 rounded-lg bg-accent-buffer text-bg font-semibold text-[13px] cursor-pointer"
-          >
-            Save & Reload
-          </button>
+        <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
+          <div>
+            <div className="text-[13px] font-medium">WHOOP</div>
+            <div className="text-[11px] text-muted">{isConnected ? "Connected" : "Not connected"}</div>
+          </div>
+          {isConnected ? (
+            <button
+              onClick={() => signIn("whoop", { callbackUrl: "/" })}
+              className="px-3 py-1.5 rounded-lg bg-transparent border border-border text-muted text-xs cursor-pointer"
+            >
+              Refresh session
+            </button>
+          ) : (
+            <button
+              onClick={() => signIn("whoop", { callbackUrl: "/" })}
+              className="px-3 py-1.5 rounded-lg bg-accent-buffer text-bg text-xs font-semibold cursor-pointer"
+            >
+              Sign in
+            </button>
+          )}
         </div>
 
         {onRebuild && (
           <button
             onClick={onRebuild}
-            className="mt-2.5 w-full py-2 rounded-lg bg-transparent border border-accent-buffer/30 text-accent-buffer text-xs cursor-pointer"
+            className="w-full py-2.5 rounded-lg bg-transparent border border-accent-buffer/30 text-accent-buffer text-[13px] cursor-pointer mb-2.5"
           >
             Rebuild Schedule
           </button>
         )}
 
         <button
-          onClick={onClear}
-          className="mt-2.5 w-full py-2 rounded-lg bg-transparent border border-red/30 text-red text-xs cursor-pointer"
+          onClick={onClose}
+          className="w-full py-2.5 rounded-lg bg-transparent border border-border text-muted text-[13px] cursor-pointer mb-2.5"
         >
-          Disconnect Whoop
+          Close
         </button>
+
+        {isConnected && (
+          <button
+            onClick={onDisconnect}
+            className="w-full py-2 rounded-lg bg-transparent border border-red/30 text-red text-xs cursor-pointer"
+          >
+            Disconnect Whoop
+          </button>
+        )}
       </div>
     </div>
   );

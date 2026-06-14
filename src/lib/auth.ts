@@ -17,7 +17,6 @@ const whoopFetch: typeof fetch = async (url, init) => {
 };
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  debug: true,
   adapter: PrismaAdapter(prisma),
   providers: [
     {
@@ -31,7 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorization: {
         url: "https://api.prod.whoop.com/oauth/oauth2/auth",
         params: {
-          scope: "read:recovery read:sleep read:profile",
+          scope: "offline read:recovery read:sleep read:profile",
         },
       },
       token: "https://api.prod.whoop.com/oauth/oauth2/token",
@@ -57,3 +56,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
 });
+
+export async function refreshWhoopToken(accountId: string, refreshToken: string) {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+    client_id: process.env.WHOOP_CLIENT_ID!,
+    client_secret: process.env.WHOOP_CLIENT_SECRET!,
+  });
+
+  const res = await fetch(WHOOP_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+
+  if (!res.ok) return null;
+
+  const tokens = await res.json();
+
+  await prisma.account.update({
+    where: { id: accountId },
+    data: {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token ?? refreshToken,
+      expires_at: Math.floor(Date.now() / 1000) + (tokens.expires_in ?? 3600),
+    },
+  });
+
+  return tokens.access_token as string;
+}
