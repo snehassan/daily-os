@@ -30,7 +30,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorization: {
         url: "https://api.prod.whoop.com/oauth/oauth2/auth",
         params: {
-          scope: "offline read:recovery read:sleep read:profile",
+          scope: "read:recovery read:sleep read:profile",
         },
       },
       token: "https://api.prod.whoop.com/oauth/oauth2/token",
@@ -45,6 +45,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   ],
   callbacks: {
+    async signIn({ account }) {
+      if (account?.provider === "whoop" && account.providerAccountId) {
+        await prisma.account.updateMany({
+          where: { provider: "whoop", providerAccountId: account.providerAccountId },
+          data: {
+            access_token: account.access_token,
+            refresh_token: account.refresh_token,
+            expires_at: account.expires_at,
+          },
+        });
+      }
+      return true;
+    },
     async session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;
