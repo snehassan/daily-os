@@ -409,7 +409,7 @@ export default function HomePage() {
 
         <PushSetup
           vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ""}
-          isAuthenticated={!!whoopData}
+          isAuthenticated={!!session?.user}
         />
 
         {tokenExpired && (
