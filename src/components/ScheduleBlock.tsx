@@ -75,8 +75,8 @@ export default function ScheduleBlockComponent({ block, shiftMinutes, isNow, isA
 
   return (
     <div
-      className={`grid grid-cols-[62px_1fr] gap-x-2.5 sm:grid-cols-[76px_1fr] sm:gap-x-3.5 lg:grid-cols-[88px_1fr] lg:gap-x-[18px] mb-[3px] relative
-        before:content-[''] before:absolute before:left-[62px] sm:before:left-[76px] lg:before:left-[88px] before:top-0 before:bottom-0 before:w-px before:bg-border`}
+      className={`grid grid-cols-[62px_1fr] gap-x-2.5 sm:grid-cols-[76px_1fr] sm:gap-x-3.5 md:grid-cols-[84px_1fr] md:gap-x-4 lg:grid-cols-[88px_1fr] lg:gap-x-[18px] mb-[3px] relative
+        before:content-[''] before:absolute before:left-[62px] sm:before:left-[76px] md:before:left-[84px] lg:before:left-[88px] before:top-0 before:bottom-0 before:w-px before:bg-border`}
     >
       <div
         className={`py-3 pr-2.5 sm:pr-3.5 lg:pr-4 text-right font-mono text-[10px] sm:text-[11px] lg:text-xs tracking-[0.04em] whitespace-nowrap leading-[1.4]

@@ -379,9 +379,11 @@ export default function HomePage() {
 
   return (
     <>
-      <div ref={contentRef} className="px-3.5 pt-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+20px)] sm:px-5 sm:pt-7 lg:max-w-[820px] lg:mx-auto lg:px-10 lg:pt-9 xl:max-w-[900px] xl:px-12">
+      <div ref={contentRef} className="px-3.5 pt-5 pb-[calc(72px+env(safe-area-inset-bottom,0px)+20px)] md:pb-[calc(80px+env(safe-area-inset-bottom,0px)+24px)] sm:px-5 sm:pt-7 md:max-w-[720px] md:mx-auto md:px-8 md:pt-8 lg:max-w-[1100px] lg:px-10 lg:pt-9 xl:max-w-[1200px] xl:px-12">
+        <div className="lg:grid lg:grid-cols-[380px_1fr] lg:gap-10 lg:items-start">
+        <div className="lg:sticky lg:top-8">
 
-        <div className="mb-5">
+        <div className="mb-5 md:mb-6">
           <div className="font-mono text-[10px] sm:text-[11px] tracking-[0.14em] text-muted uppercase mb-1.5">
             daily operating system
           </div>
@@ -476,7 +478,9 @@ export default function HomePage() {
             </button>
           )}
         </div>
+        </div>
 
+        <div>
         {editMode && (
           <div className="flex items-center justify-between mb-4 p-3 bg-surface border border-accent-buffer/30 rounded-lg flex-wrap gap-2">
             <span className="text-xs text-accent-buffer font-mono">EDIT MODE</span>
@@ -538,6 +542,8 @@ export default function HomePage() {
             </button>
           </div>
         )}
+        </div>
+        </div>
       </div>
 
       <button

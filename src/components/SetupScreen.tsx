@@ -10,14 +10,14 @@ interface Props {
 export default function SetupScreen({ onConnect: _onConnect, onSkip }: Props) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] px-5 text-center">
-      <h1 className="font-serif text-[32px] font-normal mb-2">
+      <h1 className="font-serif text-[32px] md:text-[42px] font-normal mb-2">
         Daily <em className="italic text-accent-buffer">OS</em>
       </h1>
-      <p className="text-muted text-sm mb-8 max-w-[420px] leading-[1.6]">
+      <p className="text-muted text-sm md:text-base mb-8 max-w-[420px] md:max-w-[480px] leading-[1.6]">
         Recovery-aware scheduling powered by your Whoop data.
       </p>
 
-      <div className="bg-surface border border-border rounded-[14px] p-6 w-full max-w-[460px] lg:max-w-[520px] lg:p-8">
+      <div className="bg-surface border border-border rounded-[14px] p-6 w-full max-w-[460px] md:max-w-[520px] md:p-8 lg:max-w-[520px] lg:p-8">
         <button
           onClick={() => signIn("whoop", { callbackUrl: "/" })}
           className="w-full py-3.5 border-none rounded-[10px] bg-accent-buffer text-bg font-semibold text-sm cursor-pointer active:opacity-80 transition-opacity"

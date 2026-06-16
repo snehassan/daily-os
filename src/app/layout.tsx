@@ -42,6 +42,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="apple-touch-startup-image" href="/splash.svg" />
+      </head>
       <body className="font-sans antialiased">
         <Providers>{children}</Providers>
       </body>

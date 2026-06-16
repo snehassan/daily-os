@@ -6,7 +6,9 @@
   "display": "standalone",
   "background_color": "#0d0d0f",
   "theme_color": "#0d0d0f",
-  "orientation": "portrait-primary",
+  "orientation": "any",
+  "display_override": ["standalone"],
+  "categories": ["health", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",
